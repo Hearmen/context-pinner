@@ -1,0 +1,44 @@
+{
+  "manifest_version": 3,
+  "name": "Kimi Context Pinner",
+  "version": "0.1.1",
+  "description": "Prepends editable context templates to Kimi messages before sending.",
+  "permissions": ["storage"],
+  "host_permissions": ["https://www.kimi.com/*"],
+  "icons": {
+    "16": "src/assets/icon-16.png",
+    "32": "src/assets/icon-32.png",
+    "48": "src/assets/icon-48.png",
+    "128": "src/assets/icon-128.png"
+  },
+  "action": {
+    "default_title": "Kimi Context Pinner",
+    "default_popup": "src/popup/popup.html",
+    "default_icon": {
+      "16": "src/assets/icon-16.png",
+      "32": "src/assets/icon-32.png",
+      "48": "src/assets/icon-48.png",
+      "128": "src/assets/icon-128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.kimi.com/*"],
+      "js": [
+        "src/content/page-bridge.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://www.kimi.com/*"],
+      "js": [
+        "src/shared/defaults.js",
+        "src/shared/prompt.js",
+        "src/shared/storage.js",
+        "src/content/content.js"
+      ],
+      "run_at": "document_start"
+    }
+  ]
+}

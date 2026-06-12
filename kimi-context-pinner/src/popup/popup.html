@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Kimi Context Pinner</title>
+    <link rel="stylesheet" href="./popup.css">
+  </head>
+  <body>
+    <main class="app">
+      <header class="header">
+        <h1>Kimi Context</h1>
+        <span id="status" class="status" aria-live="polite"></span>
+      </header>
+
+      <label class="field">
+        <span>模板</span>
+        <select id="templateSelect"></select>
+      </label>
+
+      <label class="toggle">
+        <input id="enabledToggle" type="checkbox">
+        <span>自动注入</span>
+      </label>
+
+      <label class="field">
+        <span>名称</span>
+        <input id="templateTitle" type="text" autocomplete="off">
+      </label>
+
+      <label class="field">
+        <span>内容</span>
+        <textarea id="templateBody" rows="8"></textarea>
+      </label>
+
+      <div class="actions">
+        <button id="saveButton" type="button">保存</button>
+        <button id="addButton" type="button">新增</button>
+        <button id="duplicateButton" type="button">复制</button>
+        <button id="deleteButton" type="button">删除</button>
+      </div>
+    </main>
+
+    <script src="../shared/defaults.js"></script>
+    <script src="../shared/storage.js"></script>
+    <script src="./popup.js"></script>
+  </body>
+</html>

@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Kimi Context Pinner icon">
+  <defs>
+    <linearGradient id="bg" x1="16" y1="12" x2="112" y2="116" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#39f6d4"/>
+      <stop offset="0.55" stop-color="#18c8ff"/>
+      <stop offset="1" stop-color="#4b7dff"/>
+    </linearGradient>
+    <linearGradient id="pin" x1="57" y1="18" x2="78" y2="104" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff172"/>
+      <stop offset="1" stop-color="#ff9f1c"/>
+    </linearGradient>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="6" stdDeviation="5" flood-color="#07436c" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+
+  <rect width="128" height="128" rx="28" fill="url(#bg)"/>
+  <circle cx="101" cy="25" r="13" fill="#ffffff" opacity="0.28"/>
+  <circle cx="26" cy="103" r="18" fill="#8affef" opacity="0.24"/>
+
+  <g filter="url(#softShadow)">
+    <rect x="29" y="28" width="70" height="74" rx="12" fill="#ffffff"/>
+    <path d="M43 46h42M43 61h42M43 76h25" fill="none" stroke="#16a4d8" stroke-width="7" stroke-linecap="round"/>
+  </g>
+
+  <g transform="rotate(19 75 64)" filter="url(#softShadow)">
+    <path d="M68 23h22c3 0 5 2 5 5v9c0 3-2 5-5 5h-2v33l9 9v8H61v-8l9-9V42h-2c-3 0-5-2-5-5v-9c0-3 2-5 5-5Z" fill="url(#pin)"/>
+    <path d="M78 91v22" fill="none" stroke="#624100" stroke-width="8" stroke-linecap="round"/>
+    <path d="M70 31h18" fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round" opacity="0.7"/>
+  </g>
+</svg>
