@@ -7,7 +7,7 @@
       name: 'Kimi',
       indicatorText: '● Context 已开启',
       matches(url) {
-        return url.protocol === 'https:' && url.hostname === 'www.kimi.com';
+        return url.origin === 'https://www.kimi.com';
       }
     }
   ];
