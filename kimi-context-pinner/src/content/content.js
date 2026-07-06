@@ -150,6 +150,15 @@
     const settings = await KCP.loadSettings();
     const activeTemplate = KCP.getActiveTemplate(settings);
     cachedEnabled = settings.enabled !== false;
+    const site = typeof KCP.getSupportedSite === 'function'
+      ? KCP.getSupportedSite(document.location.href)
+      : null;
+    if (typeof KCP.syncEnabledIndicator === 'function') {
+      KCP.syncEnabledIndicator(
+        cachedEnabled,
+        site ? site.indicatorText : '● Context 已开启'
+      );
+    }
     cachedActiveTemplateBody = activeTemplate && activeTemplate.body.trim()
       ? activeTemplate.body
       : '';

@@ -11,14 +11,18 @@ function loadContent(html) {
   globalThis.chrome = undefined;
   globalThis.__KCP_TEST__ = true;
 
+  delete require.cache[require.resolve('../src/shared/sites.js')];
   delete require.cache[require.resolve('../src/shared/defaults.js')];
   delete require.cache[require.resolve('../src/shared/prompt.js')];
   delete require.cache[require.resolve('../src/shared/storage.js')];
+  delete require.cache[require.resolve('../src/content/indicator.js')];
   delete require.cache[require.resolve('../src/content/content.js')];
 
+  require('../src/shared/sites.js');
   require('../src/shared/defaults.js');
   require('../src/shared/prompt.js');
   require('../src/shared/storage.js');
+  require('../src/content/indicator.js');
   require('../src/content/content.js');
 
   return { dom, KCP: globalThis.KCP };
@@ -44,6 +48,36 @@ test('findEditor locates Kimi contenteditable editor', () => {
 test('findSendButton locates send button container from send icon', () => {
   const { KCP } = loadContent('<div class="chat-editor"><div class="send-button-container"><svg class="send-icon"></svg></div></div>');
   assert.equal(KCP.findSendButton().className, 'send-button-container');
+});
+
+test('refreshActiveTemplate shows the Kimi enabled indicator when enabled', async () => {
+  const { KCP } = loadContent('<body></body>');
+  const calls = [];
+  KCP.loadSettings = () => Promise.resolve({
+    enabled: true,
+    templates: [{ id: 'template', title: 'Template', body: 'Template body' }],
+    activeTemplateId: 'template'
+  });
+  KCP.syncEnabledIndicator = (...args) => calls.push(args);
+
+  await KCP.refreshActiveTemplate();
+
+  assert.deepEqual(calls, [[true, KCP.SUPPORTED_SITES[0].indicatorText]]);
+});
+
+test('refreshActiveTemplate hides the Kimi enabled indicator when disabled', async () => {
+  const { KCP } = loadContent('<body></body>');
+  const calls = [];
+  KCP.loadSettings = () => Promise.resolve({
+    enabled: false,
+    templates: [{ id: 'template', title: 'Template', body: 'Template body' }],
+    activeTemplateId: 'template'
+  });
+  KCP.syncEnabledIndicator = (...args) => calls.push(args);
+
+  await KCP.refreshActiveTemplate();
+
+  assert.deepEqual(calls, [[false, KCP.SUPPORTED_SITES[0].indicatorText]]);
 });
 
 test('replaceEditorText updates editor text and dispatches input event', () => {

@@ -19,3 +19,7 @@ npm test
 6. Choose or edit a template from the extension popup.
 
 The active template is prepended to messages when clicking Kimi's send button or pressing Enter. Shift+Enter remains a newline.
+
+When context injection is enabled, supported Kimi pages show a draggable indicator in the upper-right corner. Its position resets after the page is refreshed.
+
+Changing the enable toggle refreshes only the currently active supported site so the page state updates immediately. On unsupported pages, the setting is still saved, but the page is not refreshed.
