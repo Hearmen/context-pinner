@@ -11,3 +11,24 @@ test('popup exposes an automatic injection toggle wired to settings.enabled', ()
   assert.match(script, /enabledToggle/);
   assert.match(script, /settings\.enabled/);
 });
+
+test('popup loads supported-site and active-tab helpers before popup logic', () => {
+  const html = fs.readFileSync('src/popup/popup.html', 'utf8');
+  const sitesIndex = html.indexOf('../shared/sites.js');
+  const activeTabIndex = html.indexOf('./active-tab.js');
+  const popupIndex = html.indexOf('./popup.js');
+
+  assert.ok(sitesIndex >= 0);
+  assert.ok(activeTabIndex > sitesIndex);
+  assert.ok(popupIndex > activeTabIndex);
+});
+
+test('only the enabled toggle action requests an active supported tab refresh', () => {
+  const script = fs.readFileSync('src/popup/popup.js', 'utf8');
+  const refreshCalls = script.match(/KCP\.refreshActiveSupportedTab\(\)/g) || [];
+  const toggleHandler = script.match(/enabledToggle\.addEventListener\('change',[\s\S]*?\n  \}\);/);
+
+  assert.equal(refreshCalls.length, 1);
+  assert.ok(toggleHandler);
+  assert.match(toggleHandler[0], /}, true\);/);
+});

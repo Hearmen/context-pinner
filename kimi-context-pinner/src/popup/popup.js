@@ -89,7 +89,7 @@
     template.body = bodyInput.value;
   }
 
-  async function runAction(message, action) {
+  async function runAction(message, action, refreshActiveTab = false) {
     if (!settings || isSaving) return;
 
     const fallbackSettings = cloneSettings(lastSavedSettings || settings);
@@ -100,7 +100,16 @@
       action();
       settings = await KCP.saveSettings(settings);
       lastSavedSettings = cloneSettings(settings);
-      setStatus(message);
+      if (refreshActiveTab) {
+        try {
+          await KCP.refreshActiveSupportedTab();
+          setStatus(message);
+        } catch (_error) {
+          setStatus('刷新失败');
+        }
+      } else {
+        setStatus(message);
+      }
     } catch (error) {
       await restoreAfterFailedSave(fallbackSettings);
       setStatus((error && error.message) || '保存失败');
@@ -123,7 +132,7 @@
     runAction(enabled ? '已开启' : '已关闭', () => {
       updateCurrentFromInputs();
       settings.enabled = enabled;
-    });
+    }, true);
   });
 
   saveButton.addEventListener('click', () => {
