@@ -15,8 +15,13 @@
         }
 
         const tab = tabs && tabs[0];
-        if (!tab || typeof tab.id !== 'number' || !KCP.getSupportedSite(tab.url)) {
+        if (!tab || !Number.isInteger(tab.id) || tab.id < 0 || !KCP.getSupportedSite(tab.url)) {
           resolve(false);
+          return;
+        }
+
+        if (typeof root.chrome.tabs.reload !== 'function') {
+          reject(new Error('无法刷新当前标签页'));
           return;
         }
 

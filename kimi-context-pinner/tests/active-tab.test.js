@@ -97,3 +97,36 @@ test('rejects with the tab reload runtime error', async () => {
 
   await assert.rejects(loadWith(chrome)(), /reload failed/);
 });
+
+test('rejects when reload is unavailable after an asynchronous query', async () => {
+  const chrome = {
+    runtime: {},
+    tabs: {
+      query(_queryInfo, callback) {
+        setImmediate(() => callback([{ id: 42, url: 'https://www.kimi.com/' }]));
+      }
+    }
+  };
+
+  await assert.rejects(loadWith(chrome)(), /无法刷新当前标签页/);
+});
+
+test('does not reload invalid numeric tab ids', async () => {
+  for (const id of [NaN, Infinity, 1.5, -1]) {
+    let reloadCount = 0;
+    const chrome = {
+      runtime: {},
+      tabs: {
+        query(_queryInfo, callback) {
+          callback([{ id, url: 'https://www.kimi.com/' }]);
+        },
+        reload() {
+          reloadCount += 1;
+        }
+      }
+    };
+
+    assert.equal(await loadWith(chrome)(), false);
+    assert.equal(reloadCount, 0);
+  }
+});
