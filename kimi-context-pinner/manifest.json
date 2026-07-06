@@ -3,7 +3,7 @@
   "name": "Kimi Context Pinner",
   "version": "0.1.1",
   "description": "Prepends editable context templates to Kimi messages before sending.",
-  "permissions": ["storage"],
+  "permissions": ["storage", "activeTab"],
   "host_permissions": ["https://www.kimi.com/*"],
   "icons": {
     "16": "src/assets/icon-16.png",
@@ -33,9 +33,11 @@
     {
       "matches": ["https://www.kimi.com/*"],
       "js": [
+        "src/shared/sites.js",
         "src/shared/defaults.js",
         "src/shared/prompt.js",
         "src/shared/storage.js",
+        "src/content/indicator.js",
         "src/content/content.js"
       ],
       "run_at": "document_start"
