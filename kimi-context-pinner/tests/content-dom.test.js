@@ -80,6 +80,93 @@ test('refreshActiveTemplate hides the Kimi enabled indicator when disabled', asy
   assert.deepEqual(calls, [[false, KCP.SUPPORTED_SITES[0].indicatorText]]);
 });
 
+test('startContentScript creates the enabled indicator when body appears after settings load', async () => {
+  const { dom, KCP } = loadContent('<html><head></head><body></body></html>');
+  document.body.remove();
+  KCP.loadSettings = () => Promise.resolve({
+    enabled: true,
+    templates: [{ id: 'template', title: 'Template', body: 'Template body' }],
+    activeTemplateId: 'template'
+  });
+
+  KCP.startContentScript();
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(document.getElementById('kcp-enabled-indicator'), null);
+
+  const body = document.createElement('body');
+  document.documentElement.appendChild(body);
+  await new Promise((resolve) => dom.window.setTimeout(resolve, 0));
+
+  assert.equal(document.getElementById('kcp-enabled-indicator').textContent, '● Context 已开启');
+});
+
+test('refreshActiveTemplate ignores an older request that resolves after a newer request', async () => {
+  const { KCP } = loadContent('<div class="chat-input-editor" contenteditable="true" role="textbox">question</div>');
+  const pending = [];
+  const indicatorCalls = [];
+  KCP.loadSettings = () => new Promise((resolve) => pending.push(resolve));
+  KCP.syncEnabledIndicator = (...args) => indicatorCalls.push(args);
+
+  const olderRefresh = KCP.refreshActiveTemplate();
+  const newerRefresh = KCP.refreshActiveTemplate();
+  pending[1]({
+    enabled: true,
+    templates: [{ id: 'new', title: 'New', body: 'New template' }],
+    activeTemplateId: 'new'
+  });
+  await newerRefresh;
+  pending[0]({
+    enabled: false,
+    templates: [{ id: 'old', title: 'Old', body: 'Old template' }],
+    activeTemplateId: 'old'
+  });
+  await olderRefresh;
+
+  assert.deepEqual(indicatorCalls, [[true, KCP.SUPPORTED_SITES[0].indicatorText]]);
+  assert.equal(KCP.wrapCurrentEditorInput(), true);
+  assert.match(KCP.findEditor().textContent, /New template/);
+  assert.doesNotMatch(KCP.findEditor().textContent, /Old template/);
+});
+
+test('storage changes refresh only relevant sync settings', async () => {
+  const { KCP } = loadContent('<body></body>');
+  let storageListener;
+  let loadCount = 0;
+  globalThis.chrome = {
+    storage: {
+      onChanged: {
+        addListener(listener) {
+          storageListener = listener;
+        }
+      }
+    }
+  };
+  KCP.loadSettings = () => {
+    loadCount += 1;
+    return Promise.resolve({
+      enabled: true,
+      templates: [{ id: 'template', title: 'Template', body: 'Template body' }],
+      activeTemplateId: 'template'
+    });
+  };
+  KCP.syncEnabledIndicator = () => null;
+
+  KCP.startContentScript();
+  await Promise.resolve();
+  assert.equal(loadCount, 1);
+
+  storageListener({ enabled: { newValue: false } }, 'local');
+  storageListener({ unrelated: { newValue: true } }, 'sync');
+  await Promise.resolve();
+  assert.equal(loadCount, 1);
+
+  storageListener({ enabled: { newValue: false } }, 'sync');
+  storageListener({ templates: { newValue: [] } });
+  await Promise.resolve();
+  assert.equal(loadCount, 3);
+});
+
 test('replaceEditorText updates editor text and dispatches input event', () => {
   const { KCP } = loadContent('<div class="chat-input-editor" contenteditable="true" role="textbox">old</div>');
   const editor = KCP.findEditor();

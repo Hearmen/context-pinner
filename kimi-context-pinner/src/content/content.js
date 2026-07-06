@@ -6,6 +6,8 @@
   const PAGE_RESULT_ATTR = 'data-kcp-page-replace-result';
   let cachedEnabled = true;
   let cachedActiveTemplateBody = getDefaultActiveTemplateBody();
+  let hasLoadedSettings = false;
+  let refreshRequestVersion = 0;
 
   function getDefaultActiveTemplateBody() {
     if (KCP.normalizeSettings && KCP.getActiveTemplate) {
@@ -146,22 +148,31 @@
     editor.dispatchEvent(new EventConstructor('change', { bubbles: true }));
   }
 
-  async function refreshActiveTemplate() {
-    const settings = await KCP.loadSettings();
-    const activeTemplate = KCP.getActiveTemplate(settings);
-    cachedEnabled = settings.enabled !== false;
+  function syncCachedIndicator(force) {
+    if (!hasLoadedSettings || typeof KCP.syncEnabledIndicator !== 'function') return;
+    const existing = document.getElementById && document.getElementById('kcp-enabled-indicator');
+    if (!force && (cachedEnabled ? !!existing : !existing)) return;
     const site = typeof KCP.getSupportedSite === 'function'
       ? KCP.getSupportedSite(document.location.href)
       : null;
-    if (typeof KCP.syncEnabledIndicator === 'function') {
-      KCP.syncEnabledIndicator(
-        cachedEnabled,
-        site ? site.indicatorText : '● Context 已开启'
-      );
-    }
+    KCP.syncEnabledIndicator(
+      cachedEnabled,
+      site ? site.indicatorText : '● Context 已开启'
+    );
+  }
+
+  async function refreshActiveTemplate() {
+    const requestVersion = ++refreshRequestVersion;
+    const settings = await KCP.loadSettings();
+    if (requestVersion !== refreshRequestVersion) return cachedActiveTemplateBody;
+
+    const activeTemplate = KCP.getActiveTemplate(settings);
+    cachedEnabled = settings.enabled !== false;
     cachedActiveTemplateBody = activeTemplate && activeTemplate.body.trim()
       ? activeTemplate.body
       : '';
+    hasLoadedSettings = true;
+    syncCachedIndicator(true);
     return cachedActiveTemplateBody;
   }
 
@@ -233,13 +244,22 @@
   function startContentScript() {
     bindDocumentCapture();
     bindKimiDom();
-    refreshActiveTemplate();
+    refreshActiveTemplate().catch(() => {});
     if (root.chrome && root.chrome.storage && root.chrome.storage.onChanged) {
-      root.chrome.storage.onChanged.addListener(() => {
-        refreshActiveTemplate();
+      root.chrome.storage.onChanged.addListener((changes, areaName) => {
+        if (typeof areaName !== 'undefined' && areaName !== 'sync') return;
+        const relevantKeys = ['templates', 'activeTemplateId', 'enabled'];
+        const hasRelevantChange = relevantKeys.some((key) => (
+          changes && Object.prototype.hasOwnProperty.call(changes, key)
+        ));
+        if (!hasRelevantChange) return;
+        refreshActiveTemplate().catch(() => {});
       });
     }
-    const observer = new MutationObserver(() => bindKimiDom());
+    const observer = new MutationObserver(() => {
+      bindKimiDom();
+      syncCachedIndicator();
+    });
     observer.observe(document.documentElement, { childList: true, subtree: true });
   }
 
