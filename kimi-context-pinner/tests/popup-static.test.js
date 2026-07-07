@@ -2,6 +2,13 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const test = require('node:test');
 
+test('popup uses the Context Pinner brand', () => {
+  const html = fs.readFileSync('src/popup/popup.html', 'utf8');
+  assert.match(html, /<title>Context Pinner<\/title>/);
+  assert.match(html, /<h1>Context Pinner<\/h1>/);
+  assert.doesNotMatch(html, /Kimi Context/);
+});
+
 test('popup exposes an automatic injection toggle wired to settings.enabled', () => {
   const html = fs.readFileSync('src/popup/popup.html', 'utf8');
   const script = fs.readFileSync('src/popup/popup.js', 'utf8');

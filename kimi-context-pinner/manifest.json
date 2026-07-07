@@ -1,10 +1,10 @@
 {
   "manifest_version": 3,
-  "name": "Kimi Context Pinner",
-  "version": "0.1.1",
-  "description": "Prepends editable context templates to Kimi messages before sending.",
+  "name": "Context Pinner",
+  "version": "0.2.0",
+  "description": "Prepends editable context templates to messages on supported AI chat sites.",
   "permissions": ["storage", "activeTab"],
-  "host_permissions": ["https://www.kimi.com/*"],
+  "host_permissions": ["https://www.kimi.com/*", "https://chatgpt.com/*"],
   "icons": {
     "16": "src/assets/icon-16.png",
     "32": "src/assets/icon-32.png",
@@ -12,7 +12,7 @@
     "128": "src/assets/icon-128.png"
   },
   "action": {
-    "default_title": "Kimi Context Pinner",
+    "default_title": "Context Pinner",
     "default_popup": "src/popup/popup.html",
     "default_icon": {
       "16": "src/assets/icon-16.png",
@@ -40,6 +40,19 @@
         "src/content/indicator.js",
         "src/content/runtime.js",
         "src/sites/kimi.js"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://chatgpt.com/*"],
+      "js": [
+        "src/shared/sites.js",
+        "src/shared/defaults.js",
+        "src/shared/prompt.js",
+        "src/shared/storage.js",
+        "src/content/indicator.js",
+        "src/content/runtime.js",
+        "src/sites/chatgpt.js"
       ],
       "run_at": "document_start"
     }

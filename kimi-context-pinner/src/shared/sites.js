@@ -9,6 +9,14 @@
       matches(url) {
         return url.origin === 'https://www.kimi.com';
       }
+    },
+    {
+      id: 'chatgpt',
+      name: 'ChatGPT',
+      indicatorText: '● Context 已开启',
+      matches(url) {
+        return url.origin === 'https://chatgpt.com';
+      }
     }
   ];
 

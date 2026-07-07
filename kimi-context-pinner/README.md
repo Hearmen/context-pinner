@@ -1,6 +1,11 @@
-# Kimi Context Pinner
+# Context Pinner
 
-Chrome MV3 extension for `https://www.kimi.com/`.
+Chrome MV3 extension for Kimi and ChatGPT:
+
+- `https://www.kimi.com/`
+- `https://chatgpt.com/`
+
+Templates, the active template, and the enabled setting are shared across both sites.
 
 ## Develop
 
@@ -15,11 +20,11 @@ npm test
 2. Enable Developer mode.
 3. Click Load unpacked.
 4. Select this `kimi-context-pinner` directory.
-5. Open `https://www.kimi.com/`.
+5. Open either supported site.
 6. Choose or edit a template from the extension popup.
 
-The active template is prepended to messages when clicking Kimi's send button or pressing Enter. Shift+Enter remains a newline.
+The active template is prepended to messages when clicking the site's send button or pressing Enter. Shift+Enter remains a newline.
 
-When context injection is enabled, supported Kimi pages show a draggable indicator in the upper-right corner. Its position resets after the page is refreshed.
+When context injection is enabled, supported pages show a draggable indicator in the upper-right corner. Its position resets after the page is refreshed.
 
 Changing the enable toggle refreshes only the currently active supported site so the page state updates immediately. On unsupported pages, the setting is still saved, but the page is not refreshed.

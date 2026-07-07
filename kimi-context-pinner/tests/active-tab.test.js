@@ -4,10 +4,19 @@ const test = require('node:test');
 const vm = require('node:vm');
 
 const source = fs.readFileSync('src/popup/active-tab.js', 'utf8');
+const sitesSource = fs.readFileSync('src/shared/sites.js', 'utf8');
 
 function loadWith(chrome, getSupportedSite = (url) => url.startsWith('https://www.kimi.com/')) {
   const context = { chrome, URL, KCP: { getSupportedSite } };
   context.globalThis = context;
+  vm.runInNewContext(source, context);
+  return context.KCP.refreshActiveSupportedTab;
+}
+
+function loadWithRealSites(chrome) {
+  const context = { chrome, URL };
+  context.globalThis = context;
+  vm.runInNewContext(sitesSource, context);
   vm.runInNewContext(source, context);
   return context.KCP.refreshActiveSupportedTab;
 }
@@ -31,6 +40,25 @@ test('reloads the active supported Kimi tab', async () => {
 
   assert.equal(await loadWith(chrome)(), true);
   assert.deepEqual(reloaded, [42]);
+});
+
+test('reloads the active supported ChatGPT tab using the real site registry', async () => {
+  const reloaded = [];
+  const chrome = {
+    runtime: {},
+    tabs: {
+      query(_queryInfo, callback) {
+        callback([{ id: 84, url: 'https://chatgpt.com/c/abc' }]);
+      },
+      reload(tabId, callback) {
+        reloaded.push(tabId);
+        callback();
+      }
+    }
+  };
+
+  assert.equal(await loadWithRealSites(chrome)(), true);
+  assert.deepEqual(reloaded, [84]);
 });
 
 test('does not reload an unsupported active tab', async () => {

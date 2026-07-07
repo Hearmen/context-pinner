@@ -5,6 +5,8 @@ const { JSDOM } = require('jsdom');
 
 const popupSource = fs.readFileSync('src/popup/popup.js', 'utf8');
 const popupHtml = fs.readFileSync('src/popup/popup.html', 'utf8');
+const sitesSource = fs.readFileSync('src/shared/sites.js', 'utf8');
+const activeTabSource = fs.readFileSync('src/popup/active-tab.js', 'utf8');
 
 const initialSettings = {
   templates: [
@@ -76,6 +78,44 @@ test('toggle refreshes only after its save succeeds', async (t) => {
   assert.equal(calls.refreshes, 0);
   save.resolve(clone(calls.saves[0]));
   await waitUntil(() => calls.refreshes === 1);
+});
+
+test('toggle save reloads the current ChatGPT tab through the real site registry', async (t) => {
+  const dom = new JSDOM(popupHtml, { runScripts: 'outside-only' });
+  t.after(() => dom.window.close());
+  const calls = { saves: [], reloads: [] };
+  dom.window.chrome = {
+    runtime: {},
+    tabs: {
+      query(_queryInfo, callback) {
+        callback([{ id: 84, url: 'https://chatgpt.com/c/abc' }]);
+      },
+      reload(tabId, callback) {
+        calls.reloads.push(tabId);
+        callback();
+      }
+    }
+  };
+  dom.window.KCP = {
+    normalizeSettings: clone,
+    async loadSettings() { return clone(initialSettings); },
+    async saveSettings(settings) {
+      calls.saves.push(clone(settings));
+      return clone(settings);
+    }
+  };
+  dom.window.eval(sitesSource);
+  dom.window.eval(activeTabSource);
+  dom.window.eval(popupSource);
+  await waitUntil(() => !dom.window.document.getElementById('enabledToggle').disabled);
+
+  const toggle = dom.window.document.getElementById('enabledToggle');
+  toggle.checked = false;
+  change(dom.window, toggle);
+
+  await waitUntil(() => calls.reloads.length === 1);
+  assert.equal(calls.saves[0].enabled, false);
+  assert.deepEqual(calls.reloads, [84]);
 });
 
 test('failed toggle save does not refresh and restores persisted settings', async (t) => {

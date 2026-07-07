@@ -1,6 +1,13 @@
 # Context Pinner
 
-Browser extension workspace for Kimi Context Pinner, a Chrome MV3 extension that prepends editable context templates to messages on `https://www.kimi.com/`.
+Browser extension workspace for Context Pinner, a Chrome MV3 extension that prepends editable context templates to messages on Kimi and ChatGPT.
+
+Supported sites:
+
+- `https://www.kimi.com/`
+- `https://chatgpt.com/`
+
+Both sites share the same templates, active template, and enabled setting.
 
 ## Project Layout
 
@@ -21,7 +28,7 @@ npm test
 2. Enable Developer mode.
 3. Click Load unpacked.
 4. Select the `kimi-context-pinner` directory.
-5. Open `https://www.kimi.com/`.
+5. Open either supported site.
 6. Use the extension popup to choose or edit the active context template.
 
-The active template is prepended before sending with Enter or the send button. Shift+Enter remains a newline.
+The active template is prepended before sending with Enter or the send button. Shift+Enter remains a newline. When enabled, a draggable indicator appears on supported pages. Changing the enable toggle reloads only the current active tab when it is a supported page.
