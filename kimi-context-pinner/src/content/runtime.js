@@ -96,6 +96,7 @@
     }
 
     function wrapCurrentEditorInput() {
+      if (!hasLoadedSettings) return false;
       let editor;
       let original;
       try {
@@ -218,6 +219,7 @@
 
     function setCachedTemplateBodyForTest(body) {
       cachedActiveTemplateBody = String(body || '');
+      hasLoadedSettings = true;
     }
 
     function setEnabledForTest(enabled) {

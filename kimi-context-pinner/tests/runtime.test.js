@@ -10,8 +10,9 @@ test.afterEach(() => {
 
 function deferred() {
   let resolve;
-  const promise = new Promise((done) => { resolve = done; });
-  return { promise, resolve };
+  let reject;
+  const promise = new Promise((done, fail) => { resolve = done; reject = fail; });
+  return { promise, resolve, reject };
 }
 
 async function flushMutations() {
@@ -91,6 +92,56 @@ test('refresh loads active template and syncs enabled and disabled indicators', 
   });
   await runtime.refreshActiveTemplate();
   assert.deepEqual(calls.at(-1), [false, 'Provider enabled']);
+});
+
+test('start fails closed while settings are pending then uses the loaded custom template', async () => {
+  const request = deferred();
+  const { dom, KCP, runtime } = loadRuntime('<body><div data-editor>question</div></body>');
+  KCP.loadSettings = () => request.promise;
+  runtime.start();
+  const editor = document.querySelector('[data-editor]');
+
+  editor.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  assert.equal(editor.textContent, 'question');
+
+  request.resolve({
+    enabled: true,
+    templates: [{ id: 'custom', title: 'Custom', body: 'Loaded custom' }],
+    activeTemplateId: 'custom'
+  });
+  await flushMutations();
+  editor.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  assert.equal(editor.textContent, '[Loaded custom]question');
+});
+
+test('rejected settings keep the runtime fail closed', async () => {
+  const request = deferred();
+  const { dom, KCP, runtime } = loadRuntime('<body><div data-editor>question</div></body>');
+  KCP.loadSettings = () => request.promise;
+  runtime.start();
+  request.reject(new Error('storage unavailable'));
+  await flushMutations();
+
+  const editor = document.querySelector('[data-editor]');
+  editor.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  assert.equal(editor.textContent, 'question');
+});
+
+test('pending disabled settings remain closed after they load', async () => {
+  const request = deferred();
+  const { dom, KCP, runtime } = loadRuntime('<body><div data-editor>question</div></body>');
+  KCP.loadSettings = () => request.promise;
+  runtime.start();
+  request.resolve({
+    enabled: false,
+    templates: [{ id: 'disabled', title: 'Disabled', body: 'Must not apply' }],
+    activeTemplateId: 'disabled'
+  });
+  await flushMutations();
+
+  const editor = document.querySelector('[data-editor]');
+  editor.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  assert.equal(editor.textContent, 'question');
 });
 
 test('document Enter capture wraps before later page handlers', () => {

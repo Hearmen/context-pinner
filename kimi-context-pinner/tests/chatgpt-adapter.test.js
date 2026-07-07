@@ -191,7 +191,7 @@ test('starts the shared runtime outside test mode', () => {
   assert.equal(starts, 1);
 });
 
-function loadRuntime() {
+function loadRuntime(loadSettings) {
   const dom = new JSDOM(`
     <form data-type="unified-composer">
       <div id="prompt-textarea" contenteditable="true">question</div>
@@ -212,30 +212,45 @@ function loadRuntime() {
     delete require.cache[require.resolve(file)];
     require(file);
   }
-  global.KCP.loadSettings = () => new Promise(() => {});
+  global.KCP.loadSettings = loadSettings || (() => Promise.resolve(global.KCP.normalizeSettings({})));
   const adapter = global.KCP.createChatGPTAdapter();
   const runtime = global.KCP.createContentRuntime(adapter);
   return { dom, adapter, runtime, editor: adapter.findEditor() };
 }
 
-test('real runtime wraps Enter once before later handlers while storage is pending', () => {
-  const { dom, runtime, editor } = loadRuntime();
+test('real runtime waits for storage then wraps Enter once before later handlers', async () => {
+  let resolveSettings;
+  const settings = new Promise((resolve) => { resolveSettings = resolve; });
+  const { dom, runtime, editor } = loadRuntime(() => settings);
   let replacements = 0;
   document.execCommand = (_command, _showUi, text) => { replacements += 1; editor.textContent = text; return true; };
   runtime.start();
   const seen = [];
   document.addEventListener('keydown', () => seen.push(editor.textContent));
   editor.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-  const expected = global.KCP.wrapPrompt(global.KCP.DEFAULT_TEMPLATES[0].body, 'question');
-  assert.deepEqual(seen, [expected]);
+  assert.deepEqual(seen, ['question']);
+  assert.equal(replacements, 0);
+
+  resolveSettings({
+    enabled: true,
+    templates: [{ id: 'custom', title: 'Custom', body: 'ChatGPT custom' }],
+    activeTemplateId: 'custom'
+  });
+  await Promise.resolve();
+  await Promise.resolve();
+  editor.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  const expected = global.KCP.wrapPrompt('ChatGPT custom', 'question');
+  assert.deepEqual(seen, ['question', expected]);
   assert.equal(replacements, 1);
 });
 
-test('real runtime wraps send click once and leaves Shift+Enter and composing Enter unchanged', () => {
+test('real runtime wraps send click once and leaves Shift+Enter and composing Enter unchanged', async () => {
   const { dom, runtime, editor } = loadRuntime();
   let replacements = 0;
   document.execCommand = (_command, _showUi, text) => { replacements += 1; editor.textContent = text; return true; };
   runtime.start();
+  await Promise.resolve();
+  await Promise.resolve();
   editor.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Enter', shiftKey: true, bubbles: true }));
   editor.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Enter', isComposing: true, bubbles: true }));
   assert.equal(editor.textContent, 'question');

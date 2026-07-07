@@ -175,7 +175,7 @@ test('starts the shared runtime outside test mode', () => {
   dom.window.close();
 });
 
-function loadManifestRuntime(html) {
+function loadManifestRuntime(html, loadSettings) {
   const dom = new JSDOM(html, { url: 'https://www.kimi.com/' });
   global.window = dom.window;
   global.document = dom.window.document;
@@ -195,14 +195,19 @@ function loadManifestRuntime(html) {
     delete require.cache[require.resolve(file)];
     require(file);
   }
-  global.KCP.loadSettings = () => new Promise(() => {});
+  global.KCP.loadSettings = loadSettings || (() => Promise.resolve(global.KCP.normalizeSettings({})));
   const adapter = global.KCP.createKimiAdapter();
   const runtime = global.KCP.createContentRuntime(adapter);
   return { dom, adapter, runtime };
 }
 
-test('manifest-order runtime wraps immediate Enter once through the synchronous MAIN bridge', () => {
-  const { dom, adapter, runtime } = loadManifestRuntime('<div class="chat-input-editor" contenteditable="true">question</div>');
+test('manifest-order runtime waits for settings then wraps Enter once through the synchronous MAIN bridge', async () => {
+  let resolveSettings;
+  const settings = new Promise((resolve) => { resolveSettings = resolve; });
+  const { dom, adapter, runtime } = loadManifestRuntime(
+    '<div class="chat-input-editor" contenteditable="true">question</div>',
+    () => settings
+  );
   const editor = adapter.findEditor();
   document.addEventListener('kcp:set-editor-text', (event) => {
     const payload = JSON.parse(event.detail);
@@ -212,16 +217,28 @@ test('manifest-order runtime wraps immediate Enter once through the synchronous 
   runtime.start();
 
   editor.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  assert.equal(editor.textContent, 'question');
 
-  assert.equal(editor.textContent, `请按以下上下文处理用户输入。上下文模板：${global.KCP.DEFAULT_TEMPLATES[0].body}用户输入：question`);
+  resolveSettings({
+    enabled: true,
+    templates: [{ id: 'custom', title: 'Custom', body: 'Kimi custom' }],
+    activeTemplateId: 'custom'
+  });
+  await Promise.resolve();
+  await Promise.resolve();
+  editor.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+
+  assert.equal(editor.textContent, '请按以下上下文处理用户输入。上下文模板：Kimi custom用户输入：question');
   dom.window.close();
 });
 
-test('runtime preserves input until a reliable bridge becomes available', () => {
+test('runtime preserves input until settings load and a reliable bridge becomes available', async () => {
   const { dom, adapter, runtime } = loadManifestRuntime('<div class="chat-input-editor" contenteditable="true">question</div>');
   const editor = adapter.findEditor();
   document.execCommand = () => false;
   runtime.start();
+  await Promise.resolve();
+  await Promise.resolve();
 
   editor.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
   assert.equal(editor.textContent, 'question');
