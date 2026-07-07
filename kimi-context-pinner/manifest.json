@@ -38,7 +38,8 @@
         "src/shared/prompt.js",
         "src/shared/storage.js",
         "src/content/indicator.js",
-        "src/content/content.js"
+        "src/content/runtime.js",
+        "src/sites/kimi.js"
       ],
       "run_at": "document_start"
     }
