@@ -48,12 +48,16 @@ test('replaceEditorText rejects a missing editor', () => {
   dom.window.close();
 });
 
-test('replaceEditorText focuses and dispatches input and change', () => {
+test('replaceEditorText dispatches input and change after execCommand visibly succeeds', () => {
   const { dom, adapter } = loadAdapter('<div class="chat-input-editor" contenteditable="true">old</div>');
   const editor = adapter.findEditor();
   const events = [];
   editor.addEventListener('input', (event) => events.push([event.type, event.bubbles]));
   editor.addEventListener('change', (event) => events.push([event.type, event.bubbles]));
+  document.execCommand = (_command, _showUi, text) => {
+    editor.textContent = text;
+    return true;
+  };
 
   assert.equal(adapter.replaceEditorText(editor, 'new'), true);
 
@@ -63,13 +67,37 @@ test('replaceEditorText focuses and dispatches input and change', () => {
   dom.window.close();
 });
 
-test('replaceEditorText falls back when execCommand reports success without changing DOM', () => {
+test('replaceEditorText rejects false and fake-success execCommand without mutating or dispatching', () => {
   const { dom, adapter } = loadAdapter('<div class="chat-input-editor" contenteditable="true">old</div>');
   const editor = adapter.findEditor();
+  const events = [];
+  editor.addEventListener('input', () => events.push('input'));
+  editor.addEventListener('change', () => events.push('change'));
+  Object.defineProperty(editor, 'textContent', {
+    configurable: true,
+    get: () => 'old',
+    set() { throw new Error('production fallback must not assign textContent'); }
+  });
+
+  document.execCommand = () => false;
+  assert.equal(adapter.replaceEditorText(editor, 'new'), false);
   document.execCommand = () => true;
+  assert.equal(adapter.replaceEditorText(editor, 'new'), false);
+  assert.equal(editor.textContent, 'old');
+  assert.deepEqual(events, []);
+  dom.window.close();
+});
+
+test('replaceEditorText accepts execCommand only when observable text matches', () => {
+  const { dom, adapter } = loadAdapter('<div class="chat-input-editor" contenteditable="true">old</div>');
+  const editor = adapter.findEditor();
+  document.execCommand = (_command, _showUi, text) => {
+    editor.textContent = text;
+    return true;
+  };
 
   assert.equal(adapter.replaceEditorText(editor, 'new'), true);
-  assert.equal(editor.textContent, 'new');
+  assert.equal(adapter.readEditorText(editor), 'new');
   dom.window.close();
 });
 
@@ -144,5 +172,66 @@ test('starts the shared runtime outside test mode', () => {
   require('../src/sites/kimi.js');
   assert.equal(receivedAdapter.id, 'kimi');
   assert.equal(starts, 1);
+  dom.window.close();
+});
+
+function loadManifestRuntime(html) {
+  const dom = new JSDOM(html, { url: 'https://www.kimi.com/' });
+  global.window = dom.window;
+  global.document = dom.window.document;
+  global.MutationObserver = dom.window.MutationObserver;
+  global.chrome = undefined;
+  global.KCP = {};
+  global.__KCP_TEST__ = true;
+  for (const file of [
+    '../src/shared/sites.js',
+    '../src/shared/defaults.js',
+    '../src/shared/prompt.js',
+    '../src/shared/storage.js',
+    '../src/content/indicator.js',
+    '../src/content/runtime.js',
+    '../src/sites/kimi.js'
+  ]) {
+    delete require.cache[require.resolve(file)];
+    require(file);
+  }
+  global.KCP.loadSettings = () => new Promise(() => {});
+  const adapter = global.KCP.createKimiAdapter();
+  const runtime = global.KCP.createContentRuntime(adapter);
+  return { dom, adapter, runtime };
+}
+
+test('manifest-order runtime wraps immediate Enter once through the synchronous MAIN bridge', () => {
+  const { dom, adapter, runtime } = loadManifestRuntime('<div class="chat-input-editor" contenteditable="true">question</div>');
+  const editor = adapter.findEditor();
+  document.addEventListener('kcp:set-editor-text', (event) => {
+    const payload = JSON.parse(event.detail);
+    editor.textContent = payload.text;
+    document.documentElement.setAttribute('data-kcp-page-replace-result', `${payload.nonce}:true`);
+  }, true);
+  runtime.start();
+
+  editor.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+
+  assert.equal(editor.textContent, `请按以下上下文处理用户输入。上下文模板：${global.KCP.DEFAULT_TEMPLATES[0].body}用户输入：question`);
+  dom.window.close();
+});
+
+test('runtime preserves input until a reliable bridge becomes available', () => {
+  const { dom, adapter, runtime } = loadManifestRuntime('<div class="chat-input-editor" contenteditable="true">question</div>');
+  const editor = adapter.findEditor();
+  document.execCommand = () => false;
+  runtime.start();
+
+  editor.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  assert.equal(editor.textContent, 'question');
+
+  document.addEventListener('kcp:set-editor-text', (event) => {
+    const payload = JSON.parse(event.detail);
+    editor.textContent = payload.text;
+    document.documentElement.setAttribute('data-kcp-page-replace-result', `${payload.nonce}:true`);
+  }, true);
+  editor.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  assert.match(editor.textContent, /用户输入：question$/);
   dom.window.close();
 });

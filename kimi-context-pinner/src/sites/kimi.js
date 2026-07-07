@@ -118,16 +118,20 @@
       if (!editor) return false;
       editor.focus();
 
-      const reliableUpdate = replacePageEditorText(text) || replaceLexicalEditorText(editor, text);
-      if (!reliableUpdate) {
+      let updated = replacePageEditorText(text) || replaceLexicalEditorText(editor, text);
+      if (!updated) {
         const selected = selectEditorContents(editor);
-        let inserted = false;
         if (selected && document.execCommand) {
-          inserted = document.execCommand('insertText', false, text);
+          try {
+            document.execCommand('insertText', false, text);
+            updated = readEditorText(editor) === text;
+          } catch (_error) {
+            updated = false;
+          }
         }
-        if (!inserted || editor.textContent !== text) editor.textContent = text;
       }
 
+      if (!updated) return false;
       dispatchEditorEvents(editor, text);
       return true;
     }
