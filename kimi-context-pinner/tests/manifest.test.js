@@ -3,6 +3,8 @@ const fs = require('node:fs');
 const test = require('node:test');
 
 const manifest = JSON.parse(fs.readFileSync('manifest.json', 'utf8'));
+const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+const packageLock = JSON.parse(fs.readFileSync('package-lock.json', 'utf8'));
 const isolatedScripts = [
   'src/shared/sites.js',
   'src/shared/defaults.js',
@@ -18,10 +20,14 @@ test('manifest uses shared branding and minimal permissions', () => {
   assert.equal(manifest.version, '0.2.0');
   assert.doesNotMatch(manifest.description, /Kimi/);
   assert.deepEqual(manifest.permissions, ['storage', 'activeTab']);
-  assert.deepEqual(manifest.host_permissions, [
-    'https://www.kimi.com/*',
-    'https://chatgpt.com/*'
-  ]);
+  assert.equal(Object.hasOwn(manifest, 'host_permissions'), false);
+});
+
+test('package metadata version matches manifest version', () => {
+  assert.equal(packageJson.version, '0.2.0');
+  assert.equal(packageLock.version, '0.2.0');
+  assert.equal(packageLock.packages[''].version, '0.2.0');
+  assert.equal(packageJson.version, manifest.version);
 });
 
 test('manifest registers exact isolated script order for both supported sites', () => {
@@ -50,4 +56,12 @@ test('MAIN page bridge is Kimi-only and never loaded for ChatGPT', () => {
     assert.equal(entry.world, undefined);
     assert.equal(entry.js.includes('src/content/page-bridge.js'), false);
   }
+});
+
+test('content script matches grant access only to exact supported hosts', () => {
+  const matches = manifest.content_scripts.flatMap((entry) => entry.matches);
+  assert.deepEqual([...new Set(matches)].sort(), [
+    'https://chatgpt.com/*',
+    'https://www.kimi.com/*'
+  ]);
 });

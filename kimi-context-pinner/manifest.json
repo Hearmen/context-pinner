@@ -4,7 +4,6 @@
   "version": "0.2.0",
   "description": "Prepends editable context templates to messages on supported AI chat sites.",
   "permissions": ["storage", "activeTab"],
-  "host_permissions": ["https://www.kimi.com/*", "https://chatgpt.com/*"],
   "icons": {
     "16": "src/assets/icon-16.png",
     "32": "src/assets/icon-32.png",

@@ -9,6 +9,12 @@ test('popup uses the Context Pinner brand', () => {
   assert.doesNotMatch(html, /Kimi Context/);
 });
 
+test('vector icon uses the Context Pinner accessible brand', () => {
+  const icon = fs.readFileSync('src/assets/icon.svg', 'utf8');
+  assert.match(icon, /aria-label="Context Pinner icon"/);
+  assert.doesNotMatch(icon, /Kimi Context Pinner/);
+});
+
 test('popup exposes an automatic injection toggle wired to settings.enabled', () => {
   const html = fs.readFileSync('src/popup/popup.html', 'utf8');
   const script = fs.readFileSync('src/popup/popup.js', 'utf8');
