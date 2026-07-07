@@ -39,7 +39,6 @@
     let documentCaptureBound = false;
     let storageBound = false;
     let observer = null;
-    let bodyWasAvailable = !!document.body;
     const boundEditors = new WeakSet();
     const boundButtons = new WeakSet();
     const handledEvents = new WeakSet();
@@ -204,15 +203,12 @@
       if (observer || typeof MutationObserver !== 'function' || !document.documentElement) return;
       observer = new MutationObserver(() => {
         bindProviderDom();
-        const bodyIsAvailable = !!document.body;
-        if (bodyIsAvailable && !bodyWasAvailable) syncCachedIndicator(true);
-        bodyWasAvailable = bodyIsAvailable;
+        syncCachedIndicator(false);
       });
       observer.observe(document.documentElement, { childList: true, subtree: true });
     }
 
     function start() {
-      bodyWasAvailable = !!document.body;
       bindDocumentCapture();
       bindProviderDom();
       refreshActiveTemplate().catch(() => {});

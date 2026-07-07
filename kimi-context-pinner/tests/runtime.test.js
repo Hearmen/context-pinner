@@ -1,6 +1,12 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const { JSDOM } = require('jsdom');
+const activeDoms = new Set();
+
+test.afterEach(() => {
+  for (const dom of activeDoms) dom.window.close();
+  activeDoms.clear();
+});
 
 function deferred() {
   let resolve;
@@ -15,6 +21,7 @@ async function flushMutations() {
 
 function loadRuntime(html = '<body></body>', options = {}) {
   const dom = new JSDOM(html, { url: options.url || 'https://www.kimi.com/' });
+  activeDoms.add(dom);
   global.window = dom.window;
   global.document = dom.window.document;
   global.MutationObserver = dom.window.MutationObserver;
@@ -167,9 +174,9 @@ test('start adds indicator after body appears and does not mutation-loop', async
   let syncCalls = 0;
   KCP.syncEnabledIndicator = (enabled, text) => {
     syncCalls += 1;
-    if (enabled && document.body && !document.getElementById('indicator')) {
+    if (enabled && document.body && !document.getElementById('kcp-enabled-indicator')) {
       const indicator = document.createElement('div');
-      indicator.id = 'indicator';
+      indicator.id = 'kcp-enabled-indicator';
       indicator.textContent = text;
       document.body.appendChild(indicator);
     }
@@ -179,10 +186,35 @@ test('start adds indicator after body appears and does not mutation-loop', async
   const body = document.createElement('body');
   document.documentElement.appendChild(body);
   await flushMutations();
-  assert.equal(document.getElementById('indicator').textContent, 'Provider enabled');
+  assert.equal(document.getElementById('kcp-enabled-indicator').textContent, 'Provider enabled');
   await flushMutations();
   assert.ok(syncCalls <= 2);
-  dom.window.close();
+});
+
+test('MutationObserver restores a host-removed indicator without looping', async () => {
+  const { KCP, runtime } = loadRuntime('<body></body>');
+  let syncCalls = 0;
+  KCP.syncEnabledIndicator = (enabled, text) => {
+    syncCalls += 1;
+    if (!enabled || document.getElementById('kcp-enabled-indicator')) return;
+    const indicator = document.createElement('div');
+    indicator.id = 'kcp-enabled-indicator';
+    indicator.textContent = text;
+    document.body.appendChild(indicator);
+  };
+
+  runtime.start();
+  await flushMutations();
+  const original = document.getElementById('kcp-enabled-indicator');
+  assert.ok(original);
+  assert.equal(syncCalls, 1);
+
+  original.remove();
+  await flushMutations();
+  assert.ok(document.getElementById('kcp-enabled-indicator'));
+  assert.equal(syncCalls, 2);
+  await flushMutations();
+  assert.equal(syncCalls, 2);
 });
 
 test('storage refresh filters area and keys while allowing undefined areaName', async () => {
