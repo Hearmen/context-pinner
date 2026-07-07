@@ -208,3 +208,84 @@ test('missing optional KCP helpers fail safely', async () => {
   assert.equal(runtime.wrapCurrentEditorInput(), false);
   assert.doesNotThrow(() => runtime.start());
 });
+
+test('throwing indicator helper cannot reject refresh or escape the observer', async () => {
+  const { dom, KCP, runtime } = loadRuntime('<html><head></head><body></body></html>');
+  KCP.syncEnabledIndicator = () => { throw new Error('indicator unavailable'); };
+
+  await assert.doesNotReject(runtime.refreshActiveTemplate());
+
+  document.body.remove();
+  const escapedErrors = [];
+  dom.window.addEventListener('error', (event) => {
+    escapedErrors.push(event.error);
+    event.preventDefault();
+  });
+  runtime.start();
+  await flushMutations();
+  document.documentElement.appendChild(document.createElement('body'));
+  await flushMutations();
+  assert.deepEqual(escapedErrors, []);
+});
+
+test('runtime instances keep enabled, template, and refresh request versions independent', async () => {
+  const { KCP } = loadRuntime('<body><div id="one">one</div><div id="two">two</div></body>');
+  const pending = [];
+  KCP.loadSettings = () => {
+    const request = deferred();
+    pending.push(request);
+    return request.promise;
+  };
+  const adapterFor = (id) => ({
+    findEditor: () => document.getElementById(id),
+    findSendButton: () => null,
+    readEditorText: (editor) => editor.textContent,
+    replaceEditorText(editor, text) { editor.textContent = text; return true; }
+  });
+  const first = KCP.createContentRuntime(adapterFor('one'));
+  const second = KCP.createContentRuntime(adapterFor('two'));
+
+  const firstOld = first.refreshActiveTemplate();
+  const firstNew = first.refreshActiveTemplate();
+  const secondOnly = second.refreshActiveTemplate();
+  pending[2].resolve({ enabled: true, templates: [{ id: 'two', title: 'Two', body: 'Second' }], activeTemplateId: 'two' });
+  await secondOnly;
+  pending[1].resolve({ enabled: false, templates: [{ id: 'off', title: 'Off', body: 'Disabled' }], activeTemplateId: 'off' });
+  await firstNew;
+  pending[0].resolve({ enabled: true, templates: [{ id: 'old', title: 'Old', body: 'Stale' }], activeTemplateId: 'old' });
+  await firstOld;
+
+  assert.equal(first.wrapCurrentEditorInput(), false);
+  assert.equal(document.getElementById('one').textContent, 'one');
+  assert.equal(second.wrapCurrentEditorInput(), true);
+  assert.equal(document.getElementById('two').textContent, '[Second]two');
+});
+
+test('MutationObserver binds dynamically inserted provider controls once', async () => {
+  let replacements = 0;
+  const adapter = {
+    findEditor: () => document.querySelector('[data-editor]'),
+    findSendButton: () => document.querySelector('[data-send]'),
+    readEditorText: (editor) => editor.textContent,
+    replaceEditorText(editor, text) { replacements += 1; editor.textContent = text; return true; }
+  };
+  const { dom, runtime } = loadRuntime('<body></body>', { adapter });
+  runtime.start();
+  await flushMutations();
+  runtime.setCachedTemplateBodyForTest('Dynamic');
+
+  const editor = document.createElement('div');
+  editor.dataset.editor = '';
+  editor.textContent = 'question';
+  const button = document.createElement('button');
+  button.dataset.send = '';
+  document.body.append(editor, button);
+  await flushMutations();
+  document.body.append(document.createElement('span'));
+  await flushMutations();
+
+  editor.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  button.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+  assert.equal(replacements, 2);
+  assert.equal(editor.textContent, '[Dynamic][Dynamic]question');
+});

@@ -57,7 +57,11 @@
       } catch (_error) {
         site = null;
       }
-      KCP.syncEnabledIndicator(cachedEnabled, site ? site.indicatorText : '● Context 已开启');
+      try {
+        KCP.syncEnabledIndicator(cachedEnabled, site ? site.indicatorText : '● Context 已开启');
+      } catch (_error) {
+        // Indicator failures must not discard loaded settings or break DOM observation.
+      }
     }
 
     async function refreshActiveTemplate() {
