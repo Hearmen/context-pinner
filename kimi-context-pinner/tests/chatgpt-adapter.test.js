@@ -53,6 +53,15 @@ test('findEditor rejects hidden, aria-hidden, and unrelated editable elements', 
   assert.equal(adapter.findEditor(), null);
 });
 
+test('findEditor skips a hidden primary and hidden old composer for the active fallback', () => {
+  const { adapter } = loadAdapter(`
+    <form data-type="unified-composer" style="display:none"><div id="prompt-textarea" contenteditable="true">hidden primary</div></form>
+    <form data-type="unified-composer" aria-hidden="true"><div class="ProseMirror" contenteditable="true">old</div></form>
+    <form data-type="unified-composer"><div class="ProseMirror" contenteditable="true">active</div></form>
+  `);
+  assert.equal(adapter.readEditorText(adapter.findEditor()), 'active');
+});
+
 test('findSendButton prefers an enabled send test id and falls back to enabled submit in the editor composer', () => {
   let loaded = loadAdapter(`
     <form data-type="unified-composer"><div id="prompt-textarea" contenteditable="true"></div><button type="submit">fallback</button><button data-testid="send-button">send</button></form>
@@ -78,6 +87,15 @@ test('findSendButton rejects disabled primary and disabled fallback buttons', ()
   assert.equal(loaded.adapter.findSendButton(), null);
 });
 
+test('findSendButton stays inside the active editor composer when stale composers remain', () => {
+  const { adapter } = loadAdapter(`
+    <form data-type="unified-composer" style="visibility:hidden"><div class="ProseMirror" contenteditable="true">old</div><button data-testid="send-button" id="old-send">old</button></form>
+    <form data-type="unified-composer"><div class="ProseMirror" contenteditable="true">active</div><button data-testid="send-button" id="active-send">send</button></form>
+    <button data-testid="send-button" id="outside-send">outside</button>
+  `);
+  assert.equal(adapter.findSendButton().id, 'active-send');
+});
+
 test('readEditorText uses an editor-local innerText fallback in jsdom', () => {
   const { adapter } = loadAdapter('<form data-type="unified-composer"><div id="prompt-textarea" contenteditable="true">hello</div><span id="other">other</span></form>');
   const editor = adapter.findEditor();
@@ -85,6 +103,14 @@ test('readEditorText uses an editor-local innerText fallback in jsdom', () => {
   assert.equal(editor.innerText, 'hello');
   assert.equal(typeof document.getElementById('other').innerText, 'undefined');
   assert.equal(adapter.readEditorText(null), '');
+});
+
+test('readEditorText preserves browser-style paragraph newlines through innerText', () => {
+  const { adapter } = loadAdapter('<form data-type="unified-composer"><div id="prompt-textarea" contenteditable="true"><p>one</p><p>two</p></div></form>');
+  const editor = adapter.findEditor();
+  Object.defineProperty(editor, 'innerText', { configurable: true, value: 'one\ntwo' });
+  assert.equal(adapter.readEditorText(editor), 'one\ntwo');
+  assert.equal(editor.textContent, 'onetwo');
 });
 
 test('replaceEditorText focuses, selects, and uses successful execCommand without duplicate events', () => {
@@ -105,21 +131,39 @@ test('replaceEditorText focuses, selects, and uses successful execCommand withou
   assert.deepEqual(events, [['input', 'insertText', 'new'], ['change']]);
 });
 
-test('fake exec success falls back to controlled DOM and emits input and change once', () => {
+test('execCommand native input is not duplicated and change is emitted once', () => {
+  const { dom, adapter } = loadAdapter('<form data-type="unified-composer"><div id="prompt-textarea" contenteditable="true">old</div></form>');
+  const editor = adapter.findEditor();
+  const events = [];
+  editor.addEventListener('input', () => events.push('input'));
+  editor.addEventListener('change', () => events.push('change'));
+  document.execCommand = (_command, _showUi, text) => {
+    editor.textContent = text;
+    editor.dispatchEvent(new dom.window.InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
+    return true;
+  };
+  assert.equal(adapter.replaceEditorText(editor, 'new'), true);
+  assert.deepEqual(events, ['input', 'change']);
+});
+
+test('fake exec success with unchanged text returns false without events or DOM fallback', () => {
   const { adapter } = loadAdapter('<form data-type="unified-composer"><div id="prompt-textarea" contenteditable="true">old</div></form>');
   const editor = adapter.findEditor();
   const events = [];
-  editor.addEventListener('input', (event) => events.push([event.type, event.bubbles, event.inputType, event.data]));
-  editor.addEventListener('change', (event) => events.push([event.type, event.bubbles]));
+  editor.addEventListener('input', () => events.push('input'));
+  editor.addEventListener('change', () => events.push('change'));
   document.execCommand = () => true;
+  assert.equal(adapter.replaceEditorText(editor, 'new'), false);
+  assert.equal(editor.textContent, 'old');
+  assert.deepEqual(events, []);
+});
+
+test('execCommand can reliably write multiline text without DOM construction fallback', () => {
+  const { adapter } = loadAdapter('<form data-type="unified-composer"><div id="prompt-textarea" contenteditable="true">old</div></form>');
+  const editor = adapter.findEditor();
+  document.execCommand = (_command, _showUi, text) => { editor.textContent = text; return true; };
   assert.equal(adapter.replaceEditorText(editor, 'line one\nline two'), true);
-  assert.equal(editor.childNodes.length, 1);
-  assert.equal(editor.firstChild.nodeName, 'P');
   assert.equal(editor.textContent, 'line one\nline two');
-  assert.deepEqual(events, [
-    ['input', true, 'insertText', 'line one\nline two'],
-    ['change', true]
-  ]);
 });
 
 test('replaceEditorText fails safely for missing editor and selection errors', () => {
