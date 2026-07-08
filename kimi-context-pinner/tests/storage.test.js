@@ -52,8 +52,57 @@ test('normalizeSettings ignores invalid template entries and keeps valid active 
     templates: [null, { id: 'valid', title: 'Valid', body: 'Body' }],
     activeTemplateId: 'valid'
   });
-  assert.deepEqual(settings.templates, [{ id: 'valid', title: 'Valid', body: 'Body' }]);
+  assert.deepEqual(settings.templates, [{ id: 'valid', title: 'Valid', body: 'Body', skills: [] }]);
   assert.equal(settings.activeTemplateId, 'valid');
+});
+
+test('normalizeSettings adds empty skills to old templates', () => {
+  const { KCP } = loadStorageWithFakeChrome();
+  const settings = KCP.normalizeSettings({
+    templates: [{ id: 'legacy', title: 'Legacy', body: 'Body' }],
+    activeTemplateId: 'legacy'
+  });
+  assert.deepEqual(settings.templates[0].skills, []);
+});
+
+test('normalizeSettings preserves valid skills and filters invalid entries', () => {
+  const { KCP } = loadStorageWithFakeChrome();
+  const settings = KCP.normalizeSettings({
+    templates: [{
+      id: 'with-skills',
+      title: 'With skills',
+      body: 'Body',
+      skills: [
+        { id: 'skill-a', name: 'Skill A', content: 'Content A', enabled: false },
+        { id: '', name: 'Missing id', content: 'Bad', enabled: true },
+        null,
+        { id: 'skill-b', name: '', content: 'Content B' }
+      ]
+    }],
+    activeTemplateId: 'with-skills'
+  });
+  assert.deepEqual(settings.templates[0].skills, [
+    { id: 'skill-a', name: 'Skill A', content: 'Content A', enabled: false },
+    { id: 'skill-b', name: '未命名 Skill', content: 'Content B', enabled: true }
+  ]);
+});
+
+test('cloneTemplateForDuplicate creates independent skill ids', () => {
+  const { KCP } = loadStorageWithFakeChrome();
+  const duplicate = KCP.cloneTemplateForDuplicate({
+    id: 'source',
+    title: 'Source',
+    body: 'Body',
+    skills: [
+      { id: 'skill-a', name: 'Skill A', content: 'Content A', enabled: true }
+    ]
+  }, 'copy', () => 'new-skill-id');
+
+  assert.equal(duplicate.id, 'copy');
+  assert.equal(duplicate.title, 'Source 副本');
+  assert.deepEqual(duplicate.skills, [
+    { id: 'new-skill-id', name: 'Skill A', content: 'Content A', enabled: true }
+  ]);
 });
 
 test('saveSettings writes normalized templates and active id', async () => {

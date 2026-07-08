@@ -1,12 +1,52 @@
 (function attachStorage(root) {
   const KCP = root.KCP || {};
+  const DEFAULT_SKILL_NAME = '未命名 Skill';
+
+  function createFallbackSkillId() {
+    return `skill-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  }
+
+  function cloneSkill(skill) {
+    const source = skill && typeof skill === 'object' ? skill : {};
+    const id = String(source.id || '');
+    if (!id) return null;
+
+    return {
+      id,
+      name: String(source.name || DEFAULT_SKILL_NAME),
+      content: String(source.content || ''),
+      enabled: source.enabled === false ? false : true
+    };
+  }
+
+  function normalizeSkills(skills) {
+    if (!Array.isArray(skills)) return [];
+    return skills
+      .map(cloneSkill)
+      .filter(Boolean);
+  }
 
   function cloneTemplate(template) {
     const source = template && typeof template === 'object' ? template : {};
     return {
       id: String(source.id || ''),
       title: String(source.title || ''),
-      body: String(source.body || '')
+      body: String(source.body || ''),
+      skills: normalizeSkills(source.skills)
+    };
+  }
+
+  function cloneTemplateForDuplicate(template, id, createSkillId) {
+    const source = cloneTemplate(template);
+    const createId = typeof createSkillId === 'function' ? createSkillId : createFallbackSkillId;
+    return {
+      id: String(id || ''),
+      title: `${source.title || '未命名模板'} 副本`,
+      body: source.body,
+      skills: source.skills.map((skill) => ({
+        ...skill,
+        id: String(createId(skill) || createFallbackSkillId())
+      }))
     };
   }
 
@@ -86,6 +126,10 @@
     return normalized.templates.find((template) => template.id === normalized.activeTemplateId) || null;
   }
 
+  KCP.DEFAULT_SKILL_NAME = DEFAULT_SKILL_NAME;
+  KCP.cloneSkill = cloneSkill;
+  KCP.normalizeSkills = normalizeSkills;
+  KCP.cloneTemplateForDuplicate = cloneTemplateForDuplicate;
   KCP.normalizeSettings = normalizeSettings;
   KCP.loadSettings = loadSettings;
   KCP.saveSettings = saveSettings;
