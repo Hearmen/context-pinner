@@ -44,7 +44,7 @@ function loadRuntime(html = '<body></body>', options = {}) {
       templates: [{ id: 'active', title: 'Active', body: 'Template body' }],
       activeTemplateId: 'active'
     }),
-    wrapPrompt: (template, input) => input.trim() ? `[${template}]${input}` : input,
+    wrapPrompt: (template, input) => input.trim() ? `[${template.body ?? template}]${input}` : input,
     getSupportedSite: () => ({ indicatorText: 'Provider enabled' }),
     syncEnabledIndicator() {}
   };
@@ -92,6 +92,36 @@ test('refresh loads active template and syncs enabled and disabled indicators', 
   });
   await runtime.refreshActiveTemplate();
   assert.deepEqual(calls.at(-1), [false, 'Provider enabled']);
+});
+
+test('refresh caches active template body and enabled skills', async () => {
+  const { KCP, runtime } = loadRuntime('<body><div data-editor>question</div></body>');
+  const payloads = [];
+  KCP.loadSettings = () => Promise.resolve({
+    enabled: true,
+    templates: [{
+      id: 'active',
+      title: 'Active',
+      body: 'Template body',
+      skills: [
+        { id: 'skill-a', name: 'Skill A', content: 'Content A', enabled: true },
+        { id: 'skill-b', name: 'Skill B', content: 'Content B', enabled: false }
+      ]
+    }],
+    activeTemplateId: 'active'
+  });
+  KCP.wrapPrompt = (payload, input) => {
+    payloads.push(payload);
+    return `${payload.body}:${payload.skills.map((skill) => skill.name).join(',')}:${input}`;
+  };
+
+  await runtime.refreshActiveTemplate();
+  assert.equal(runtime.wrapCurrentEditorInput(), true);
+  assert.equal(document.querySelector('[data-editor]').textContent, 'Template body:Skill A:question');
+  assert.deepEqual(payloads[0], {
+    body: 'Template body',
+    skills: [{ id: 'skill-a', name: 'Skill A', content: 'Content A', enabled: true }]
+  });
 });
 
 test('start fails closed while settings are pending then uses the loaded custom template', async () => {

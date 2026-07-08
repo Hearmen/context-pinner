@@ -25,6 +25,19 @@
       : '';
   }
 
+  function activePayloadFromTemplate(template) {
+    const body = template && typeof template.body === 'string' ? template.body : '';
+    const skills = Array.isArray(template && template.skills)
+      ? template.skills.filter((skill) => (
+        skill
+        && skill.enabled !== false
+        && typeof skill.content === 'string'
+        && skill.content.trim()
+      ))
+      : [];
+    return { body, skills };
+  }
+
   function createContentRuntime(adapter) {
     REQUIRED_ADAPTER_METHODS.forEach((method) => {
       if (!adapter || typeof adapter[method] !== 'function') {
@@ -33,7 +46,7 @@
     });
 
     let cachedEnabled = true;
-    let cachedActiveTemplateBody = defaultTemplateBody();
+    let cachedActiveTemplatePayload = { body: defaultTemplateBody(), skills: [] };
     let hasLoadedSettings = false;
     let refreshRequestVersion = 0;
     let documentCaptureBound = false;
@@ -65,10 +78,10 @@
 
     async function refreshActiveTemplate() {
       const requestVersion = ++refreshRequestVersion;
-      if (typeof KCP.loadSettings !== 'function') return cachedActiveTemplateBody;
+      if (typeof KCP.loadSettings !== 'function') return cachedActiveTemplatePayload;
 
       const loadedSettings = await KCP.loadSettings();
-      if (requestVersion !== refreshRequestVersion) return cachedActiveTemplateBody;
+      if (requestVersion !== refreshRequestVersion) return cachedActiveTemplatePayload;
 
       let settings = loadedSettings || {};
       try {
@@ -85,23 +98,24 @@
       }
 
       cachedEnabled = settings.enabled !== false;
-      cachedActiveTemplateBody = activeTemplate
-        && typeof activeTemplate.body === 'string'
-        && activeTemplate.body.trim()
-        ? activeTemplate.body
-        : '';
+      cachedActiveTemplatePayload = activePayloadFromTemplate(activeTemplate);
       hasLoadedSettings = true;
       syncCachedIndicator(true);
-      return cachedActiveTemplateBody;
+      return cachedActiveTemplatePayload;
     }
 
     function wrapCurrentEditorInput() {
       if (!hasLoadedSettings) return false;
+      const payload = cachedActiveTemplatePayload;
       let editor;
       let original;
       try {
         editor = adapter.findEditor();
-        if (!editor || !cachedEnabled || !cachedActiveTemplateBody.trim()) return false;
+        if (
+          !editor
+          || !cachedEnabled
+          || (!payload.body.trim() && payload.skills.length === 0)
+        ) return false;
         original = adapter.readEditorText(editor);
       } catch (_error) {
         return false;
@@ -111,7 +125,7 @@
 
       let wrapped;
       try {
-        wrapped = KCP.wrapPrompt(cachedActiveTemplateBody, original);
+        wrapped = KCP.wrapPrompt(payload, original);
       } catch (_error) {
         return false;
       }
@@ -218,7 +232,7 @@
     }
 
     function setCachedTemplateBodyForTest(body) {
-      cachedActiveTemplateBody = String(body || '');
+      cachedActiveTemplatePayload = { body: String(body || ''), skills: [] };
       hasLoadedSettings = true;
     }
 
