@@ -35,6 +35,7 @@
   let settings = null;
   let lastSavedSettings = null;
   let isSaving = false;
+  let isImportingSkill = false;
   let editingSkillId = null;
 
   function cloneSettings(source) {
@@ -46,7 +47,7 @@
   }
 
   function updateControls() {
-    const disabled = !settings || isSaving;
+    const disabled = !settings || isSaving || isImportingSkill;
     for (const control of controls) {
       control.disabled = disabled;
     }
@@ -328,21 +329,40 @@
 
   skillFileInput.addEventListener('change', async () => {
     const file = skillFileInput.files && skillFileInput.files[0];
-    if (!file || !settings || isSaving) return;
-
-    let content;
-    try {
-      content = await file.text();
-    } catch (_error) {
+    if (!file || !settings) return;
+    if (isSaving || isImportingSkill) {
       skillFileInput.value = '';
-      setStatus('读取 Skill 失败');
+      setStatus('正在保存，请稍后再导入 Skill');
       return;
     }
 
-    skillFileInput.value = '';
-    runAction('已导入', () => {
+    const targetTemplateId = settings.activeTemplateId;
+    let content;
+    isImportingSkill = true;
+    updateControls();
+
+    try {
+      content = await file.text();
+    } catch (_error) {
+      setStatus('读取 Skill 失败');
+      return;
+    } finally {
+      skillFileInput.value = '';
+      isImportingSkill = false;
+      updateControls();
+    }
+
+    if (isSaving) {
+      setStatus('正在保存，请稍后再导入 Skill');
+      return;
+    }
+
+    await runAction('已导入 Skill', () => {
       updateCurrentFromInputs();
-      currentSkills().push({
+      const template = settings.templates.find((item) => item.id === targetTemplateId);
+      if (!template) return;
+      if (!Array.isArray(template.skills)) template.skills = [];
+      template.skills.push({
         id: createSkillId(),
         name: parseSkillName(content),
         content,

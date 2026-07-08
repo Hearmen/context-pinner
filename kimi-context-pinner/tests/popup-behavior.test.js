@@ -273,3 +273,52 @@ test('popup imports a skill file into the current template', async (t) => {
   assert.equal(Object.hasOwn(imported, 'path'), false);
   assert.equal(input.value, '');
 });
+
+test('popup imports a slow skill file into the template selected at file selection time', async (t) => {
+  const fileRead = deferred();
+  const { dom, calls } = await createPopup({});
+  t.after(() => dom.window.close());
+  const document = dom.window.document;
+  const input = document.getElementById('skillFileInput');
+  const file = { text: () => fileRead.promise };
+
+  Object.defineProperty(input, 'files', {
+    configurable: true,
+    value: [file]
+  });
+  change(dom.window, input);
+
+  const select = document.getElementById('templateSelect');
+  select.value = 'two';
+  change(dom.window, select);
+  await waitUntil(() => calls.saves.length === 1);
+
+  fileRead.resolve('---\nname: slow-skill\n---\nBody');
+
+  await waitUntil(() => calls.saves.length === 2);
+  assert.equal(calls.saves[1].templates[0].skills.at(-1).name, 'slow-skill');
+  assert.deepEqual(calls.saves[1].templates[1].skills, []);
+});
+
+test('popup reports an import attempted while another save is active', async (t) => {
+  const save = deferred();
+  const { dom, calls } = await createPopup({ saveSettings: () => save.promise });
+  t.after(() => dom.window.close());
+  const document = dom.window.document;
+  const input = document.getElementById('skillFileInput');
+  const file = { text: async () => '---\nname: blocked-skill\n---\nBody' };
+
+  click(dom.window, document.getElementById('saveButton'));
+  await waitUntil(() => calls.saves.length === 1);
+
+  Object.defineProperty(input, 'files', {
+    configurable: true,
+    value: [file]
+  });
+  change(dom.window, input);
+
+  await waitUntil(() => document.getElementById('status').textContent === '正在保存，请稍后再导入 Skill');
+  assert.equal(calls.saves.length, 1);
+
+  save.resolve(clone(calls.saves[0]));
+});
