@@ -11,9 +11,10 @@
     const id = String(source.id || '');
     if (!id) return null;
 
+    const name = String(source.name || '').trim() || DEFAULT_SKILL_NAME;
     return {
       id,
-      name: String(source.name || DEFAULT_SKILL_NAME),
+      name,
       content: String(source.content || ''),
       enabled: source.enabled === false ? false : true
     };

@@ -1055,4 +1055,3 @@ If no documentation changes are needed, do not create an empty commit. If README
 git add README.md
 git commit -m "Document template skill testing"
 ```
-

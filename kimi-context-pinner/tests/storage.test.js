@@ -87,6 +87,23 @@ test('normalizeSettings preserves valid skills and filters invalid entries', () 
   ]);
 });
 
+test('normalizeSettings trims skill names and falls back for whitespace names', () => {
+  const { KCP } = loadStorageWithFakeChrome();
+  const settings = KCP.normalizeSettings({
+    templates: [{
+      id: 'skills',
+      title: 'Skills',
+      body: 'Body',
+      skills: [
+        { id: 'trimmed', name: '  Trimmed Skill  ', content: 'Content' },
+        { id: 'blank', name: '   ', content: 'Content' }
+      ]
+    }],
+    activeTemplateId: 'skills'
+  });
+  assert.deepEqual(settings.templates[0].skills.map((skill) => skill.name), ['Trimmed Skill', '未命名 Skill']);
+});
+
 test('cloneTemplateForDuplicate creates independent skill ids', () => {
   const { KCP } = loadStorageWithFakeChrome();
   const duplicate = KCP.cloneTemplateForDuplicate({
