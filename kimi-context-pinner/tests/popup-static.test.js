@@ -25,6 +25,22 @@ test('popup exposes an automatic injection toggle wired to settings.enabled', ()
   assert.match(script, /settings\.enabled/);
 });
 
+test('popup contains template skills controls', () => {
+  const html = fs.readFileSync('src/popup/popup.html', 'utf8');
+
+  for (const id of [
+    'skillFileInput',
+    'skillsList',
+    'skillEditor',
+    'skillNameInput',
+    'skillContentInput',
+    'skillDoneButton',
+    'skillDeleteButton'
+  ]) {
+    assert.match(html, new RegExp(`id="${id}"`));
+  }
+});
+
 test('popup loads supported-site and active-tab helpers before popup logic', () => {
   const html = fs.readFileSync('src/popup/popup.html', 'utf8');
   const sitesIndex = html.indexOf('../shared/sites.js');

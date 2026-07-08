@@ -10,8 +10,13 @@ const activeTabSource = fs.readFileSync('src/popup/active-tab.js', 'utf8');
 
 const initialSettings = {
   templates: [
-    { id: 'one', title: 'One', body: 'First' },
-    { id: 'two', title: 'Two', body: 'Second' }
+    {
+      id: 'one',
+      title: 'One',
+      body: 'First',
+      skills: [{ id: 'skill-one', name: 'Existing Skill', content: 'Existing content', enabled: true }]
+    },
+    { id: 'two', title: 'Two', body: 'Second', skills: [] }
   ],
   activeTemplateId: 'one',
   enabled: true
@@ -64,6 +69,10 @@ async function createPopup({ saveSettings, refreshActiveSupportedTab }) {
 
 function change(window, element) {
   element.dispatchEvent(new window.Event('change', { bubbles: true }));
+}
+
+function click(window, element) {
+  element.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
 }
 
 test('toggle refreshes only after its save succeeds', async (t) => {
@@ -169,4 +178,98 @@ test('non-toggle popup actions never refresh the active tab', async (t) => {
   }
 
   assert.equal(calls.refreshes, 0);
+});
+
+test('popup renders skills and toggles skill enabled state', async (t) => {
+  const { dom, calls } = await createPopup({});
+  t.after(() => dom.window.close());
+  const document = dom.window.document;
+  const checkbox = document.querySelector('[data-skill-enabled="skill-one"]');
+
+  assert.ok(checkbox);
+  assert.equal(checkbox.checked, true);
+
+  checkbox.checked = false;
+  change(dom.window, checkbox);
+
+  await waitUntil(() => calls.saves.length === 1);
+  assert.equal(calls.saves[0].templates[0].skills[0].enabled, false);
+});
+
+test('popup expands skill editor, saves edits, and collapses', async (t) => {
+  const { dom, calls } = await createPopup({});
+  t.after(() => dom.window.close());
+  const document = dom.window.document;
+  const editor = document.getElementById('skillEditor');
+
+  click(dom.window, document.querySelector('[data-skill-edit="skill-one"]'));
+
+  assert.equal(editor.hidden, false);
+  assert.equal(document.getElementById('skillNameInput').value, 'Existing Skill');
+  assert.equal(document.getElementById('skillContentInput').value, 'Existing content');
+
+  document.getElementById('skillNameInput').value = 'Updated Skill';
+  document.getElementById('skillContentInput').value = 'Updated content';
+  click(dom.window, document.getElementById('skillDoneButton'));
+
+  await waitUntil(() => calls.saves.length === 1 && editor.hidden);
+  assert.equal(calls.saves[0].templates[0].skills[0].name, 'Updated Skill');
+  assert.equal(calls.saves[0].templates[0].skills[0].content, 'Updated content');
+});
+
+test('popup deletes a skill from the current template', async (t) => {
+  const { dom, calls } = await createPopup({});
+  t.after(() => dom.window.close());
+  const document = dom.window.document;
+  const editor = document.getElementById('skillEditor');
+
+  click(dom.window, document.querySelector('[data-skill-edit="skill-one"]'));
+  click(dom.window, document.getElementById('skillDeleteButton'));
+
+  await waitUntil(() => calls.saves.length === 1 && editor.hidden);
+  assert.deepEqual(calls.saves[0].templates[0].skills, []);
+});
+
+test('switching templates refreshes skills list and collapses editor', async (t) => {
+  const { dom } = await createPopup({});
+  t.after(() => dom.window.close());
+  const document = dom.window.document;
+  const editor = document.getElementById('skillEditor');
+
+  click(dom.window, document.querySelector('[data-skill-edit="skill-one"]'));
+  assert.equal(editor.hidden, false);
+
+  const select = document.getElementById('templateSelect');
+  select.value = 'two';
+  change(dom.window, select);
+
+  await waitUntil(() => editor.hidden && !document.querySelector('[data-skill-enabled="skill-one"]'));
+  assert.equal(document.querySelector('[data-skill-enabled="skill-one"]'), null);
+});
+
+test('popup imports a skill file into the current template', async (t) => {
+  const { dom, calls } = await createPopup({});
+  t.after(() => dom.window.close());
+  const document = dom.window.document;
+  const input = document.getElementById('skillFileInput');
+  const content = '---\nname: imported-skill\n---\nBody';
+  const file = new dom.window.File([content], 'SKILL.md', { type: 'text/markdown' });
+  if (typeof file.text !== 'function') {
+    file.text = async () => content;
+  }
+
+  Object.defineProperty(input, 'files', {
+    configurable: true,
+    value: [file]
+  });
+  change(dom.window, input);
+
+  await waitUntil(() => calls.saves.length === 1);
+  const imported = calls.saves[0].templates[0].skills[1];
+  assert.equal(imported.name, 'imported-skill');
+  assert.match(imported.content, /Body/);
+  assert.equal(imported.enabled, true);
+  assert.equal(Object.hasOwn(imported, 'fileName'), false);
+  assert.equal(Object.hasOwn(imported, 'path'), false);
+  assert.equal(input.value, '');
 });

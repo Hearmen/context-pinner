@@ -33,6 +33,30 @@
         <textarea id="templateBody" rows="8"></textarea>
       </label>
 
+      <section class="skills" aria-label="模板 Skills">
+        <label class="field">
+          <span>导入 Skill</span>
+          <input id="skillFileInput" type="file" accept=".md,.txt,text/markdown,text/plain">
+        </label>
+
+        <div id="skillsList" class="skills-list"></div>
+
+        <div id="skillEditor" class="skill-editor" hidden>
+          <label class="field">
+            <span>Skill 名称</span>
+            <input id="skillNameInput" type="text" autocomplete="off">
+          </label>
+          <label class="field">
+            <span>Skill 内容</span>
+            <textarea id="skillContentInput" rows="6"></textarea>
+          </label>
+          <div class="skill-editor-actions">
+            <button id="skillDoneButton" type="button">完成</button>
+            <button id="skillDeleteButton" type="button">删除 Skill</button>
+          </div>
+        </div>
+      </section>
+
       <div class="actions">
         <button id="saveButton" type="button">保存</button>
         <button id="addButton" type="button">新增</button>
