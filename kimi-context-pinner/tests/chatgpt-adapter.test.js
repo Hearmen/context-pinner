@@ -258,6 +258,6 @@ test('real runtime wraps send click once and leaves Shift+Enter and composing En
   const seen = [];
   document.querySelector('[data-testid=send-button]').addEventListener('click', () => seen.push(editor.textContent));
   document.querySelector('[data-testid=send-button] span').dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
-  assert.match(seen[0], /用户输入：question$/);
+  assert.match(seen[0], /用户输入：\nquestion$/);
   assert.equal(replacements, 1);
 });

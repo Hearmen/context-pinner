@@ -228,7 +228,7 @@ test('manifest-order runtime waits for settings then wraps Enter once through th
   await Promise.resolve();
   editor.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
 
-  assert.equal(editor.textContent, '请按以下上下文处理用户输入。上下文模板：Kimi custom用户输入：question');
+  assert.equal(editor.textContent, '请按以下上下文处理用户输入。\n\n上下文模板：\nKimi custom\n\n用户输入：\nquestion');
   dom.window.close();
 });
 
@@ -249,6 +249,6 @@ test('runtime preserves input until settings load and a reliable bridge becomes 
     document.documentElement.setAttribute('data-kcp-page-replace-result', `${payload.nonce}:true`);
   }, true);
   editor.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-  assert.match(editor.textContent, /用户输入：question$/);
+  assert.match(editor.textContent, /用户输入：\nquestion$/);
   dom.window.close();
 });
