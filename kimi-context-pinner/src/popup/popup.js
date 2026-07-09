@@ -9,6 +9,7 @@
   const addButton = document.getElementById('addButton');
   const duplicateButton = document.getElementById('duplicateButton');
   const deleteButton = document.getElementById('deleteButton');
+  const addSkillButton = document.getElementById('addSkillButton');
   const skillFileInput = document.getElementById('skillFileInput');
   const skillsList = document.getElementById('skillsList');
   const skillEditor = document.getElementById('skillEditor');
@@ -25,6 +26,7 @@
     addButton,
     duplicateButton,
     deleteButton,
+    addSkillButton,
     skillFileInput,
     skillNameInput,
     skillContentInput,
@@ -330,6 +332,23 @@
       if (!template) return;
       template.skills = currentSkills().filter((skill) => skill.id !== skillId);
       collapseSkillEditor();
+    });
+  });
+
+  addSkillButton.addEventListener('click', () => {
+    runAction('已新增 Skill', () => {
+      updateCurrentFromInputs();
+      const template = currentTemplate();
+      if (!template) return;
+      if (!Array.isArray(template.skills)) template.skills = [];
+      const skill = {
+        id: createSkillId(),
+        name: defaultSkillName(),
+        content: '',
+        enabled: true
+      };
+      template.skills.push(skill);
+      editingSkillId = skill.id;
     });
   });
 

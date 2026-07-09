@@ -5,7 +5,7 @@ const test = require('node:test');
 const manifest = JSON.parse(fs.readFileSync('manifest.json', 'utf8'));
 const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
 const packageLock = JSON.parse(fs.readFileSync('package-lock.json', 'utf8'));
-const expectedVersion = '0.3.0';
+const expectedVersion = '0.4.0';
 const isolatedScripts = [
   'src/shared/sites.js',
   'src/shared/defaults.js',

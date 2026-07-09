@@ -34,10 +34,19 @@
       </label>
 
       <section class="skills" aria-label="模板 Skills">
-        <label class="field">
-          <span>导入 Skill</span>
-          <input id="skillFileInput" type="file" accept=".md,.txt,text/markdown,text/plain">
-        </label>
+        <div class="skills-header">
+          <div>
+            <h2>Skills</h2>
+            <p>为当前模板选择要一起注入的 Skill</p>
+          </div>
+          <div class="skill-actions">
+            <button id="addSkillButton" class="skill-action skill-action-primary" type="button">新增 Skill</button>
+            <label class="skill-action skill-import-action">
+              <span>导入文件</span>
+              <input id="skillFileInput" type="file" accept=".md,.txt,text/markdown,text/plain">
+            </label>
+          </div>
+        </div>
 
         <div id="skillsList" class="skills-list"></div>
 

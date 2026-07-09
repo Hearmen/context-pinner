@@ -289,6 +289,31 @@ test('popup imports a skill file into the current template', async (t) => {
   assert.equal(input.value, '');
 });
 
+test('popup creates a blank enabled skill and opens it for editing', async (t) => {
+  const { dom, calls } = await createPopup({});
+  t.after(() => dom.window.close());
+  const document = dom.window.document;
+
+  click(dom.window, document.getElementById('addSkillButton'));
+
+  await waitUntil(() => calls.saves.length === 1 && !document.getElementById('skillEditor').hidden);
+  const created = calls.saves[0].templates[0].skills[1];
+  assert.equal(created.name, '未命名 Skill');
+  assert.equal(created.content, '');
+  assert.equal(created.enabled, true);
+  assert.equal(document.getElementById('skillNameInput').value, '未命名 Skill');
+  assert.equal(document.getElementById('skillContentInput').value, '');
+  assert.ok(document.querySelector(`[data-skill-edit="${created.id}"]`));
+
+  document.getElementById('skillNameInput').value = 'Manual Skill';
+  document.getElementById('skillContentInput').value = 'Manual content';
+  click(dom.window, document.getElementById('skillDoneButton'));
+
+  await waitUntil(() => calls.saves.length === 2 && document.getElementById('skillEditor').hidden);
+  assert.equal(calls.saves[1].templates[0].skills[1].name, 'Manual Skill');
+  assert.equal(calls.saves[1].templates[0].skills[1].content, 'Manual content');
+});
+
 test('popup imports a slow skill file into the template selected at file selection time', async (t) => {
   const fileRead = deferred();
   const { dom, calls } = await createPopup({});

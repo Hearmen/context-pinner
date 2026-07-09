@@ -29,6 +29,7 @@ test('popup contains template skills controls', () => {
   const html = fs.readFileSync('src/popup/popup.html', 'utf8');
 
   for (const id of [
+    'addSkillButton',
     'skillFileInput',
     'skillsList',
     'skillEditor',
@@ -39,6 +40,8 @@ test('popup contains template skills controls', () => {
   ]) {
     assert.match(html, new RegExp(`id="${id}"`));
   }
+  assert.match(html, /class="skill-action skill-action-primary"/);
+  assert.match(html, /class="skill-action skill-import-action"/);
 });
 
 test('popup loads supported-site and active-tab helpers before popup logic', () => {
