@@ -5,6 +5,7 @@ const test = require('node:test');
 const manifest = JSON.parse(fs.readFileSync('manifest.json', 'utf8'));
 const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
 const packageLock = JSON.parse(fs.readFileSync('package-lock.json', 'utf8'));
+const expectedVersion = '0.3.0';
 const isolatedScripts = [
   'src/shared/sites.js',
   'src/shared/defaults.js',
@@ -17,16 +18,16 @@ const isolatedScripts = [
 test('manifest uses shared branding and minimal permissions', () => {
   assert.equal(manifest.name, 'Context Pinner');
   assert.equal(manifest.action.default_title, 'Context Pinner');
-  assert.equal(manifest.version, '0.2.0');
+  assert.equal(manifest.version, expectedVersion);
   assert.doesNotMatch(manifest.description, /Kimi/);
   assert.deepEqual(manifest.permissions, ['storage', 'activeTab']);
   assert.equal(Object.hasOwn(manifest, 'host_permissions'), false);
 });
 
 test('package metadata version matches manifest version', () => {
-  assert.equal(packageJson.version, '0.2.0');
-  assert.equal(packageLock.version, '0.2.0');
-  assert.equal(packageLock.packages[''].version, '0.2.0');
+  assert.equal(packageJson.version, expectedVersion);
+  assert.equal(packageLock.version, expectedVersion);
+  assert.equal(packageLock.packages[''].version, expectedVersion);
   assert.equal(packageJson.version, manifest.version);
 });
 
