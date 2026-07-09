@@ -217,6 +217,21 @@ test('popup expands skill editor, saves edits, and collapses', async (t) => {
   assert.equal(calls.saves[0].templates[0].skills[0].content, 'Updated content');
 });
 
+test('main save persists the open skill editor before saving settings', async (t) => {
+  const { dom, calls } = await createPopup({});
+  t.after(() => dom.window.close());
+  const document = dom.window.document;
+
+  click(dom.window, document.querySelector('[data-skill-edit="skill-one"]'));
+  document.getElementById('skillNameInput').value = 'Main Saved Skill';
+  document.getElementById('skillContentInput').value = 'Main saved content';
+  click(dom.window, document.getElementById('saveButton'));
+
+  await waitUntil(() => calls.saves.length === 1);
+  assert.equal(calls.saves[0].templates[0].skills[0].name, 'Main Saved Skill');
+  assert.equal(calls.saves[0].templates[0].skills[0].content, 'Main saved content');
+});
+
 test('popup deletes a skill from the current template', async (t) => {
   const { dom, calls } = await createPopup({});
   t.after(() => dom.window.close());

@@ -195,6 +195,12 @@
     if (!template) return;
     template.title = titleInput.value.trim() || '未命名模板';
     template.body = bodyInput.value;
+
+    const skill = currentEditingSkill();
+    if (skill) {
+      skill.name = skillNameInput.value.trim() || defaultSkillName();
+      skill.content = skillContentInput.value;
+    }
   }
 
   function parseSkillName(content) {
