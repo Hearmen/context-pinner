@@ -64,6 +64,42 @@ function loadRuntime(html = '<body></body>', options = {}) {
   return { dom, KCP: global.KCP, adapter, runtime: global.KCP.createContentRuntime(adapter) };
 }
 
+function loadRuntimeWithRealSharedModules(html = '<body></body>', settings) {
+  const dom = new JSDOM(html, { url: 'https://www.kimi.com/' });
+  activeDoms.add(dom);
+  global.window = dom.window;
+  global.document = dom.window.document;
+  global.MutationObserver = dom.window.MutationObserver;
+  global.chrome = undefined;
+  global.KCP = {};
+
+  for (const modulePath of [
+    '../src/shared/defaults.js',
+    '../src/shared/storage.js',
+    '../src/shared/prompt.js',
+    '../src/content/runtime.js'
+  ]) {
+    delete require.cache[require.resolve(modulePath)];
+    require(modulePath);
+  }
+
+  global.KCP.loadSettings = () => Promise.resolve(settings);
+  global.KCP.getSupportedSite = () => ({ indicatorText: 'Provider enabled' });
+  global.KCP.syncEnabledIndicator = () => {};
+
+  const adapter = {
+    findEditor: () => document.querySelector('[data-editor]'),
+    findSendButton: () => document.querySelector('[data-send]'),
+    readEditorText: (editor) => editor.textContent,
+    replaceEditorText(editor, text) {
+      editor.textContent = text;
+      return true;
+    }
+  };
+
+  return { dom, KCP: global.KCP, runtime: global.KCP.createContentRuntime(adapter) };
+}
+
 test('createContentRuntime validates every required adapter method', () => {
   const { KCP } = loadRuntime();
   for (const method of ['findEditor', 'findSendButton', 'readEditorText', 'replaceEditorText']) {
@@ -75,6 +111,31 @@ test('createContentRuntime validates every required adapter method', () => {
       name: 'TypeError', message: `Content adapter must provide ${method}()`
     });
   }
+});
+
+test('real shared runtime injects active template body and selected skill content together', async () => {
+  const { runtime } = loadRuntimeWithRealSharedModules('<body><div data-editor>question</div></body>', {
+    enabled: true,
+    templates: [{
+      id: 'active',
+      title: 'Active',
+      body: 'Template body',
+      skills: [
+        { id: 'skill-a', name: 'Skill A', content: 'Skill content A', enabled: true },
+        { id: 'skill-b', name: 'Skill B', content: 'Skill content B', enabled: false }
+      ]
+    }],
+    activeTemplateId: 'active'
+  });
+
+  await runtime.refreshActiveTemplate();
+  assert.equal(runtime.wrapCurrentEditorInput(), true);
+
+  const text = document.querySelector('[data-editor]').textContent;
+  assert.match(text, /上下文模板：\nTemplate body/);
+  assert.match(text, /启用 Skills：\n## Skill A\nSkill content A/);
+  assert.doesNotMatch(text, /Skill content B/);
+  assert.match(text, /用户输入：\nquestion$/);
 });
 
 test('refresh loads active template and syncs enabled and disabled indicators', async () => {
